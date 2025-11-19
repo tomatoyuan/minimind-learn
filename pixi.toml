@@ -1,0 +1,61 @@
+[workspace]
+authors = ["tomato_hpc <awellfrog@163.com>"]
+channels = ["conda-forge"]
+name = "minimind"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+# 验证 PyTorch 和 CUDA 是否安装成功
+check-gpu = "python -c \"import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'PyTorch version: {torch.__version__}'); print(f'CUDA version: {torch.version.cuda if torch.cuda.is_available() else None}')\""
+
+[system-requirements]
+cuda = "12.2" # 确保你的显卡驱动支持 >= 12.2
+
+# --- Conda 依赖 (负责底层环境) ---
+[dependencies]
+python = "3.10.16.*"
+cuda-version = "12.1.*" # 推荐保持 12.1，兼容性最好，PyTorch 2.6+ 也支持
+
+# --- PyPI 依赖 (负责具体 Python 库) ---
+# 注意：Pixi 会自动使用 uv 来解析这些依赖，速度很快
+[pypi-dependencies]
+# PyTorch 相关 (PyPI 版本通常自带 CUDA 运行时，安装体积较大但版本最新)
+torch = "==2.6.0"
+torchvision = "==0.21.0"
+
+datasets = "==3.6.0"
+datasketch = "==1.6.4"
+flask = "==3.0.3"
+flask-cors = "==4.0.0"
+jieba = "==0.42.1"
+jsonlines = "==4.0.0"
+marshmallow = "==3.22.0"
+matplotlib = "==3.10.0"
+ngrok = "==1.4.0"
+nltk = "==3.8"
+numpy = "==1.26.4" # 锁定版本很重要，防止自动升级到 numpy 2.0 导致兼容性问题
+openai = "==1.59.6"
+peft = "==0.7.1"
+psutil = "==5.9.8"
+pydantic = "==2.11.5"
+rich = "==13.7.1"
+scikit-learn = "==1.5.1" # 注意包名通常是 scikit-learn 而不是 scikit_learn
+sentence-transformers = "==2.3.1"
+simhash = "==2.1.2"
+tiktoken = "==0.10.0"
+transformers = "==4.57.1"
+jinja2 = "==3.1.2"
+trl = "==0.13.0"
+ujson = "==5.1.0"
+wandb = "==0.18.3"
+streamlit = "==1.50.0"
+einops = "==0.8.1"
+swanlab = "==0.6.8"
+
+[pypi-options]
+# 使用清华源 (推荐，稳定)
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+# 或者使用阿里云源
+# index-url = "https://mirrors.aliyun.com/pypi/simple/"
