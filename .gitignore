@@ -1,4 +1,13 @@
+# Ignore Visual Studio Code settings
+.vscode/*
+
+*.pyc
 # pixi environments
 .pixi/*
 !.pixi/config.toml
-./dataset/*.jsonl
+# Ignore dataset files
+dataset/*.json
+dataset/*.jsonl
+# Ignore model checkpoints
+checkpoints/*
+out/*

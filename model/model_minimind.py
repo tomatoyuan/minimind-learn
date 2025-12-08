@@ -219,19 +219,19 @@ def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
     返回:
     - 重复后的张量，形状为 [batch_size, seq_len, num_heads, head_dim * n_rep]
     """
-    batch_size, seq_len, num_heads, head_dim = x.shape
+    batch_size, seq_len, num_k_v_heads, head_dim = x.shape
     if n_rep == 1:
         return x
     # None：等价于np.newaxis，作用是在指定位置插入一个长度为 1 的新维度（这里插入在第 3 维），下面举例示意维度变化
     # (2,10,8,64) → (2,10,8,1,64) →                 (2,10,8,2,64)                     → (2,10,8,128)
-    return x[:, :, :, None, :].expand(batch_size, seq_len, num_heads, n_rep, head_dim).reshape(batch_size, seq_len, num_heads, head_dim * n_rep)
+    return x[:, :, :, None, :].expand(batch_size, seq_len, num_k_v_heads, n_rep, head_dim).reshape(batch_size, seq_len, num_k_v_heads * n_rep, head_dim)
 
 class Attention(nn.Module):
     def __init__(self, args: MiniMindConfig):
         super().__init__()
         self.num_key_value_heads = args.num_attention_heads if args.num_key_value_heads is None else args.num_key_value_heads
         assert args.num_attention_heads % self.num_key_value_heads == 0, "num_attention_heads must be divisible by num_key_value_heads"
-        self.n_local_heads = args.num_key_value_heads
+        self.n_local_heads = args.num_attention_heads
         self.n_local_kv_heads = args.num_key_value_heads
         self.n_rep = self.n_local_heads // self.n_local_kv_heads
         self.head_dim = args.hidden_size // args.num_attention_heads
@@ -421,7 +421,7 @@ class MiniMindModel(nn.Module):
 
         # 计算 MoE 辅助损失
         aux_loss = sum(
-            layer.mlp.aux_loss for layer in self.layers if hasattr(layer.mlp, MoEFeedForward)
+            layer.mlp.aux_loss for layer in self.layers if isinstance(layer.mlp, MoEFeedForward)
         )
 
         return hidden_states, presents, aux_loss

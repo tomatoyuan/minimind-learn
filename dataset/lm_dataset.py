@@ -6,7 +6,7 @@ import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false" # 禁用 Tokenizer 的并行处理，避免多线程冲突。
 
-class PredtrainedDataset(Dataset):
+class PretrainDataset(Dataset):
     """
     用于语言模型的无监督预训练（类似 GPT 的自回归预训练），核心任务是 “预测下一个 token”。
     """
@@ -38,7 +38,7 @@ class PredtrainedDataset(Dataset):
             truncation=True,
             return_tensors='pt'
         )
-        input_ids = encoding['input_ids'].squeeze()  # 去掉批次维度
+        input_ids = encoding.input_ids.squeeze()  # 去掉批次维度
         loss_mask = (input_ids != self.tokenizer.pad_token_id)  # 创建损失掩码，非填充部分为1，填充部分为0
 
         X = torch.tensor(input_ids[:-1], dtype=torch.long)  # 输入序列，去掉最后一个token
