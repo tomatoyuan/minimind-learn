@@ -52,6 +52,7 @@ wandb = "==0.18.3"
 streamlit = "==1.50.0"
 einops = "==0.8.1"
 swanlab = "==0.6.8"
+deepspeed = ">=0.18.3, <0.19"
 
 [pypi-options]
 # 使用清华源 (推荐，稳定)
