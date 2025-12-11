@@ -17,7 +17,7 @@
 #     --max_seq_len 512 \
 #     --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/sft_512.jsonl \
 #     --from_weight pretrain \
-#     --from_resume 0 \
+#     --from_resume 1 \
 #     --use_wandb \
 #     --wandb_project MiniMind-Full-SFT-512
 
@@ -35,13 +35,26 @@
 #     --wandb_project MiniMind-Full-SFT-512
 
 
-python train_lora.py \
+# python train_lora.py \
+#     --use_moe 0 \
+#     --num_hidden_layers 8 \
+#     --epochs 50 \
+#     --max_seq_len 512 \
+#     --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/lora_identity.jsonl \
+#     --from_weight full_sft \
+#     --from_resume 0 \
+#     --use_wandb \
+#     --wandb_project MiniMind-LoRA
+
+
+python train_ppo.py \
+    --epochs 1 \
     --use_moe 0 \
-    --num_hidden_layers 8 \
-    --epochs 50 \
-    --max_seq_len 512 \
-    --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/lora_identity.jsonl \
-    --from_weight full_sft \
+    --dtype float32 \
+    --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/rlaif-mini.jsonl \
+    --reasoning 0 \
+    --update_old_actor_freq 4 \
+    --reward_model_path /home/qyfan/models/internlm2-1_8b-reward \
     --from_resume 0 \
     --use_wandb \
-    --wandb_project MiniMind-LoRA
+    --wandb_project MiniMind-PPO

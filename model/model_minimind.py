@@ -51,7 +51,7 @@ class MiniMindConfig(PretrainedConfig):
             n_shared_experts: int = 1,       # 共享专家 (Shared Experts) 的数量：
                                              # 借鉴 DeepSeek-V2/V3 设计，这些专家总是被激活，不参与路由竞争，用于捕获通用知识。
             scoring_func: str = 'softmax',   # 门控网络 (Gate) 计算路由权重的函数，通常为 softmax
-            aux_loss_alpha: float = 0.1,     # 辅助损失 (Auxiliary Loss) 系数：
+            aux_loss_alpha: float = 0.01,     # 辅助损失 (Auxiliary Loss) 系数：
                                              # 用于训练时平衡各个专家的负载，防止 "专家坍塌" (Expert Collapse)。
             seq_aux: bool = True,            # 辅助损失计算方式：True 表示在序列级别统计负载，False 表示在 Batch 级别统计。
             norm_topk_prob: bool = True,     # 是否对选出的 Top-K 专家的权重进行归一化 (使其和为1)。
@@ -84,6 +84,7 @@ class MiniMindConfig(PretrainedConfig):
             "beta_slow": 1,      # YaRN 低频衰减参数
             "factor": 4,         # 线性扩展因子 (Context window * 4)
             "original_max_position_embeddings": 2048, # 模型原始预训练时的最大长度
+            "attention_factor": 1.0,
             "type": "yarn"       # 指定缩放类型为 yarn
         } if self.inference_rope_scaling else None
         
@@ -274,22 +275,8 @@ class Attention(nn.Module):
             repeat_kv(xv, self.n_rep).transpose(1, 2)
         )
 
-        if self.flash and seq_len > 1:
-            # 只有 “启用了 Flash Attention” 且 “序列长度有效（>1）”，才进入后续掩码处理逻辑；否则跳过（使用普通注意力的掩码逻辑）。
-            if attention_mask is None or torch.all(attention_mask == 1):
-                # 用户未传入任何注意力掩码（默认无掩码）或者传入的掩码是 “全 1 掩码”（所有位置都允许注意力加权，等价于无掩码）；
-                # 则将 attn_mask 设置为 None（表示无掩码），并将 is_causal 设置为 True（表示使用因果掩码）。
-                attn_mask, is_causal = None, True
-            else:
-                # 用户传入了非全 1 的attention_mask（比如某些位置是 0，需要屏蔽这些位置的注意力）。
-                # torch.triu会将非上三角部分设为 0，而上三角部分保留原-inf，最终实现 “未来位置掩码为-inf，当前和过去位置为 0”。
-                causal_mask = torch.triu(torch.full((seq_len, seq_len), float('-inf'), device=xq.device), diagonal=1)
-                # 当启用 Flash Attention 且有用户指定的非全 1 掩码时，把 “屏蔽未来位置” 的因果约束和 “屏蔽用户指定位置” 的普通约束，合并成一个 Flash Attention 能识别的高维掩码，同时禁用内置因果掩码避免重复处理。
-                extended_mask = (1.0 - attention_mask.unsqueeze(1).unsqueeze(2)) * float('-inf')
-                attn_mask, is_causal = causal_mask.unsqueeze(0) + extended_mask, False
-
-            dropout_p = self.dropout if self.training else 0.0
-            output = F.scaled_dot_product_attention(xq, xk, xv, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal)
+        if self.flash and seq_len > 1 and (attention_mask is None or torch.all(attention_mask == 1)):
+            output = F.scaled_dot_product_attention(xq, xk, xv, dropout_p=self.dropout if self.training else 0.0, is_causal=True)
         else:
             scores = (xq @ xk.transpose(-2, -1)) / math.sqrt(self.head_dim)
             # 因果掩码
