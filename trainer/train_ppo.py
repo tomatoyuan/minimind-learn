@@ -24,12 +24,6 @@ from trainer.train_utils import Logger, is_main_process, lm_checkpoint, init_dis
 
 warnings.filterwarnings('ignore')
 
-# 禁用Flash Attention
-import torch.backends.cuda
-# 强制使用纯数学计算，虽然慢，但最稳
-torch.backends.cuda.enable_flash_sdp(False)
-torch.backends.cuda.enable_mem_efficient_sdp(False)
-torch.backends.cuda.enable_math_sdp(True)
 
 class CriticModel(MiniMindForCausalLM):
     def __init__(self, config):
@@ -128,70 +122,9 @@ def ppo_train_epoch(epoch, loader, iters, old_actor_model, ref_model, actor_sche
         prompts = batch["prompt"]  # list[str], length B
         enc = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, # enc.shape: [Batch_Size, batch_max_seq_Len] 
                        max_length=args.max_seq_len).to(args.device)  # input_ids: [B, P], attention_mask: [B, P]
-
-#Prefix: ======= 插入这段调试代码 =======
-        print(f"\n[DEBUG Step]")
-        print(f"Input shape: {enc.input_ids.shape}")
-        print(f"Max ID in input: {enc.input_ids.max().item()}")
-        print(f"Min ID in input: {enc.input_ids.min().item()}")
-        print(f"Pad Token ID: {tokenizer.pad_token_id}")
-        print(f"EOS Token ID: {tokenizer.eos_token_id}")
-        print(f"Model config vocab limit: {actor_model.config.vocab_size}")
-
-        # 严查越界
-        if enc.input_ids.max().item() >= actor_model.config.vocab_size:
-            print("🔴 CRITICAL ERROR: Input ID exceeds model vocabulary size!")
-            print(f"Found ID {enc.input_ids.max().item()} >= {actor_model.config.vocab_size}")
-            print("这会导致 CUDA error: device-side assert triggered")
-            print("请检查 Tokenizer 是否输出了 6400？如果是，你需要把模型的 vocab_size 设为 6401 或更大。")
-            import sys; sys.exit(1)
-            
-        # 严查 NaN 权重 (防止加载的权重本身就是坏的)
-        for name, param in actor_model.named_parameters():
-            if torch.isnan(param).any():
-                print(f"🔴 CRITICAL ERROR: Parameter {name} contains NaN!")
-                import sys; sys.exit(1)
-
-        print(f"Attention Mask Shape: {enc.attention_mask.shape}")
-        # 检查每一行 mask 的和
-        mask_sums = enc.attention_mask.sum(dim=1)
-        print(f"Mask Sums per row: {mask_sums}")
-        
-        if (mask_sums == 0).any():
-            print("🔴 CRITICAL ERROR: Found a row with ALL-ZERO attention mask!")
-            print("Reason: One of your prompts is empty or fully filtered out by tokenizer.")
-            print("Solution: Check your dataset/jsonl file for empty strings.")
-            import sys; sys.exit(1)
-            
-        # 进一步检查：是不是只有 <bos> 没有其他内容？
-        # 如果 mask sum == 1 (只有 bos)，有时候也会导致后续计算不稳定
-        if (mask_sums <= 1).any():
-            print("⚠️ WARNING: Found a row with extremely short prompt (length <= 1).")
-            print("这可能导致 Attention 计算不稳定。")
-#Prefix: ==================================
         # torch.full((B,), L): 创建一个长度为 Batch Size (B) 的向量，里面的每个值都是 L。
         # 配合 left padding 使用，表示每个序列的实际内容长度（包含padding），方便后续找出生成内容的起始索引。
         prompt_lengths = torch.full((enc.input_ids.size(0),), enc.input_ids.shape[1], dtype=torch.long, device=enc.input_ids.device)  # [B]
-
-# === 插入测试代码 ===
-        print("[Debug] Testing forward pass before generate...")
-        with torch.no_grad():
-            # 手动跑一次前向传播
-            model_for_gen = actor_model.module if isinstance(actor_model, DistributedDataParallel) else actor_model
-            test_out = model_for_gen(input_ids=enc.input_ids, attention_mask=enc.attention_mask)
-            test_logits = test_out.logits
-            
-            if torch.isnan(test_logits).any():
-                print("❌ Forward pass produced NaN logits!")
-                print(f"Logits max: {test_logits.max()}, min: {test_logits.min()}")
-                
-                # 进一步检查是哪一层出的问题（如果有Embedding输出NaN，那就是Embedding的问题）
-                # 这里假设你有办法访问 embeddings，通常是:
-                # print("Embed out:", model_for_gen.model.embed_tokens(enc.input_ids))
-                exit(1)
-            else:
-                print("✅ Forward pass is clean. Logits are finite.")
-# ===================
 
         '''Step 1: 采样 (Rollout)'''
         with torch.no_grad():
@@ -510,66 +443,6 @@ if __name__ == "__main__":
         old_actor_model.to(args.device)
     
     # ========== 8. 开始训练 ==========
-# 模型权重检查===============================
-    print("-" * 30)
-    print("正在检查模型权重健康状况...")
-    has_nan = False
-    for name, param in actor_model.named_parameters():
-        if torch.isnan(param).any() or torch.isinf(param).any():
-            print(f"🔴 CRITICAL WARNING: Parameter [{name}] contains NaN or Inf!")
-            print(f"   - Max: {param.max()}, Min: {param.min()}")
-            has_nan = True
-            
-    if has_nan:
-        print("❌ 模型权重文件已损坏（包含NaN），无法进行训练。")
-        print("请检查 `args.save_dir` 或 `ckp` 指向的路径，删除坏的权重文件，重新开始。")
-        exit(1)
-    else:
-        print("✅ 模型权重检查通过，数值正常。")
-    print("-" * 30)
-# ==========================================
-
-
-# ==========================================
-# 🕵️‍♂️ NaN 侦探：注册 Hook 精准定位故障层
-# ==========================================
-    print("\n🕵️‍♂️ 正在注册 NaN 监控钩子 (Layer Hooks)...")
-    
-    def detect_nan_hook(module, input, output):
-        # 1. 提取 Output Tensor
-        if isinstance(output, tuple):
-            tensor_out = output[0]
-        else:
-            tensor_out = output
-        
-        # 2. 检查 NaN 或 Inf
-        if isinstance(tensor_out, torch.Tensor):
-            if torch.isnan(tensor_out).any() or torch.isinf(tensor_out).any():
-                print(f"\n🔴 [CRITICAL ERROR] NaN/Inf DETECTED!")
-                print(f"📍 Layer Type: {module.__class__.__name__}")
-                print(f"📍 Layer Name: {module}")
-                
-                # 检查输入情况
-                if len(input) > 0 and isinstance(input[0], torch.Tensor):
-                    print(f"   Input Stat: min={input[0].min().item():.4f}, max={input[0].max().item():.4f}, mean={input[0].mean().item():.4f}")
-                    if torch.isnan(input[0]).any():
-                        print("   (输入本身就已经包含 NaN 了，说明是上一层传下来的)")
-                
-                # 检查输出情况
-                print(f"   Output Stat: {tensor_out}")
-                print("🛑 停止运行，请分析上述报错层。")
-                import sys; sys.exit(1)
-
-    # 获取实际模型 (解包 DDP)
-    real_model = actor_model.module if hasattr(actor_model, "module") else actor_model
-    
-    # 为每一层注册 Hook
-    for name, submodule in real_model.named_modules():
-        submodule.register_forward_hook(detect_nan_hook)
-        
-    print("✅ Hook 注册完成，准备捕捉 NaN...\n")
-# ==========================================
-
     for epoch in range(start_epoch, args.epochs):
         train_sampler and train_sampler.set_epoch(epoch)
         if epoch == start_epoch and start_step > 0:  # 第一个epoch且存在检查点

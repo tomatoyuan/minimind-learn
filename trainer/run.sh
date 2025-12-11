@@ -48,7 +48,7 @@
 
 
 python train_ppo.py \
-    --epochs 1 \
+    --epochs 3 \
     --use_moe 0 \
     --dtype float32 \
     --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/rlaif-mini.jsonl \
