@@ -13,7 +13,7 @@
 # python train_full_sft.py \
 #     --use_moe 0 \
 #     --num_hidden_layers 8 \
-#     --epochs 20 \
+#     --epochs 2 \
 #     --max_seq_len 512 \
 #     --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/sft_512.jsonl \
 #     --from_weight pretrain \
@@ -23,13 +23,25 @@
 
 
 # 单机 4 张卡
-torchrun --nproc_per_node=4 --master_port=29511 train_full_sft.py \
+# torchrun --nproc_per_node=4 --master_port=29511 train_full_sft.py \
+#     --use_moe 0 \
+#     --num_hidden_layers 8 \
+#     --epochs 20 \
+#     --max_seq_len 512 \
+#     --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/sft_512.jsonl \
+#     --from_weight pretrain \
+#     --from_resume 0 \
+#     --use_wandb \
+#     --wandb_project MiniMind-Full-SFT-512
+
+
+python train_lora.py \
     --use_moe 0 \
     --num_hidden_layers 8 \
-    --epochs 20 \
+    --epochs 50 \
     --max_seq_len 512 \
-    --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/sft_512.jsonl \
-    --from_weight pretrain \
+    --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/lora_identity.jsonl \
+    --from_weight full_sft \
     --from_resume 0 \
     --use_wandb \
-    --wandb_project MiniMind-Full-SFT-512
+    --wandb_project MiniMind-LoRA
