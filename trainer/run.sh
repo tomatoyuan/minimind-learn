@@ -47,16 +47,23 @@
 #     --wandb_project MiniMind-LoRA
 
 
-python train_ppo.py \
-    --epochs 3 \
+# python train_ppo.py \
+#     --epochs 3 \
+#     --use_moe 0 \
+#     --batch_size 16 \
+#     --learning_rate 1e-6 \
+#     --dtype bfloat16 \
+#     --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/rlaif-mini.jsonl \
+#     --reasoning 0 \
+#     --update_old_actor_freq 4 \
+#     --reward_model_path /home/qyfan/models/internlm2-1_8b-reward \
+#     --from_resume 0 \
+#     --use_wandb \
+#     --wandb_project MiniMind-PPO
+
+python train_dpo.py \
+    --epochs 2 \
     --use_moe 0 \
     --batch_size 16 \
-    --learning_rate 1e-6 \
-    --dtype bfloat16 \
-    --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/rlaif-mini.jsonl \
-    --reasoning 0 \
-    --update_old_actor_freq 4 \
-    --reward_model_path /home/qyfan/models/internlm2-1_8b-reward \
-    --from_resume 0 \
     --use_wandb \
-    --wandb_project MiniMind-PPO
+    --wandb_project MiniMind-DPO
