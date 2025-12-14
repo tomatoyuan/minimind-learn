@@ -50,7 +50,9 @@
 python train_ppo.py \
     --epochs 3 \
     --use_moe 0 \
-    --dtype float32 \
+    --batch_size 16 \
+    --learning_rate 1e-6 \
+    --dtype bfloat16 \
     --data_path /home/qyfan/tomato/src_learning/minimind-learn/dataset/rlaif-mini.jsonl \
     --reasoning 0 \
     --update_old_actor_freq 4 \
