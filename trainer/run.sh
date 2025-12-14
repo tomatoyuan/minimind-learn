@@ -61,9 +61,20 @@
 #     --use_wandb \
 #     --wandb_project MiniMind-PPO
 
-python train_dpo.py \
-    --epochs 2 \
-    --use_moe 0 \
-    --batch_size 16 \
+# python train_dpo.py \
+#     --epochs 2 \
+#     --use_moe 0 \
+#     --batch_size 16 \
+#     --use_wandb \
+#     --wandb_project MiniMind-DPO
+
+# python train_distill_reason.py \
+#     --epochs 1 \
+#     --use_wandb \
+#     --wandb_project MiniMind-Distill-Reason
+
+python train_pretrain.py \
+    --epochs 1 \
+    --use_moe 1 \
     --use_wandb \
-    --wandb_project MiniMind-DPO
+    --wandb_project MiniMind-Pretrain-MOE
