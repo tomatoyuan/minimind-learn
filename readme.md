@@ -9,7 +9,7 @@
 | #    | 标题            | 链接                                 |
 | ---- | --------------- | ------------------------------------ |
 | 0    | 环境搭建        | [查看文档](doc/0.环境搭建.md)        |
-| 1    | train tokenizer | [查看文档](doc/1.train tokenizer.md) |
+| 1    | train tokenizer | [查看文档](doc/1.train_tokenizer.md) |
 | 2    | DataLoader      | [查看文档](doc/2.DataLoader.md)      |
 | 3    | 模型构建        | [查看文档](doc/3.模型构建.md)        |
 | 4    | Pretrain        | [查看文档](doc/4.Pretrain.md)        |
