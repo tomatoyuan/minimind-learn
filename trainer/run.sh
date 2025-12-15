@@ -73,8 +73,14 @@
 #     --use_wandb \
 #     --wandb_project MiniMind-Distill-Reason
 
-python train_pretrain.py \
-    --epochs 1 \
-    --use_moe 1 \
+# MoE
+# python train_pretrain.py \
+#     --epochs 1 \
+#     --use_moe 1 \
+#     --use_wandb \
+#     --wandb_project MiniMind-Pretrain-MOE
+
+python train_grpo.py \
+    --reward_model_path /home/qyfan/models/internlm2-1_8b-reward \
     --use_wandb \
-    --wandb_project MiniMind-Pretrain-MOE
+    --wandb_project MiniMind-GRPO
