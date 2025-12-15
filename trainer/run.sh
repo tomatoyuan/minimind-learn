@@ -80,7 +80,20 @@
 #     --use_wandb \
 #     --wandb_project MiniMind-Pretrain-MOE
 
-python train_grpo.py \
-    --reward_model_path /home/qyfan/models/internlm2-1_8b-reward \
+# python train_grpo.py \
+#     --reward_model_path /home/qyfan/models/internlm2-1_8b-reward \
+#     --use_wandb \
+#     --wandb_project MiniMind-GRPO
+
+
+### vlm ###
+# python train_pretrain_vlm.py \
+#     --from_weight llm \
+#     --use_wandb \
+#     --wandb_project MiniMind-V-Pretrain
+
+
+python train_sft_vlm.py \
+    --from_weight pretrain_vlm \
     --use_wandb \
-    --wandb_project MiniMind-GRPO
+    --wandb_project MiniMind-V-SFT

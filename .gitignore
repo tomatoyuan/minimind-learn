@@ -1,6 +1,8 @@
 # Ignore Visual Studio Code settings
 .vscode/*
 
+model/vision_model/clip-vit-base-patch16
+
 *.pyc
 # pixi environments
 .pixi/*
@@ -8,6 +10,10 @@
 # Ignore dataset files
 dataset/*.json
 dataset/*.jsonl
+dataset/pretrain_images/*
+dataset/sft_images/*
+dataset/eval_images/*
+dataset/eval_multi_images/*
 # Ignore model checkpoints
 checkpoints/*
 out/*
